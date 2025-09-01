@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Price Predictor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-4xl mx-4">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-cyan-400">Stock Price Predictor</h1>
+            <p class="text-gray-400 mt-2">Predict future stock prices using a simple linear regression model.</p>
+        </div>
+
+        <!-- Input Section -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <input type="text" id="stockTicker" class="w-full sm:w-1/2 bg-gray-700 text-white border-2 border-gray-600 rounded-lg px-4 py-3 text-lg focus:outline-none focus:border-cyan-500 transition duration-300" placeholder="Enter Stock Ticker (e.g., AAPL)">
+            <button id="predictBtn" class="w-full sm:w-auto bg-cyan-500 hover:bg-cyan-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-lg transition duration-300 transform hover:scale-105">
+                Predict
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="hidden text-center bg-gray-700 p-6 rounded-lg">
+            <h2 class="text-2xl font-semibold mb-2">Prediction Result</h2>
+            <p id="predictionText" class="text-3xl font-bold text-green-400"></p>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="mt-8">
+            <canvas id="stockChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const predictBtn = document.getElementById('predictBtn');
+        const stockTickerInput = document.getElementById('stockTicker');
+        const resultsDiv = document.getElementById('results');
+        const predictionText = document.getElementById('predictionText');
+        const stockChartCanvas = document.getElementById('stockChart');
+        let stockChart;
+
+        predictBtn.addEventListener('click', () => {
+            const stockTicker = stockTickerInput.value.trim().toUpperCase();
+            if (!stockTicker) {
+                // Simple validation feedback without using alert()
+                stockTickerInput.classList.add('border-red-500');
+                setTimeout(() => stockTickerInput.classList.remove('border-red-500'), 2000);
+                return;
+            }
+
+            // Simulate fetching historical data
+            const historicalData = generateHistoricalData(stockTicker);
+
+            // Perform linear regression
+            const prediction = linearRegression(historicalData);
+
+            // Display results
+            resultsDiv.classList.remove('hidden');
+            predictionText.textContent = `Predicted Next Day's Close for ${stockTicker}: $${prediction.toFixed(2)}`;
+            
+            // Visualize data
+            visualizeData(historicalData, prediction, stockTicker);
+        });
+
+        function generateHistoricalData(ticker) {
+            const data = [];
+            let price = Math.random() * 500 + 50; // Starting price
+            for (let i = 0; i < 90; i++) { // Generate 90 days of data
+                const date = new Date();
+                date.setDate(date.getDate() - (90 - i));
+                const fluctuation = (Math.random() - 0.5) * 10;
+                price += fluctuation;
+                if (price < 10) price = 10; // Ensure price doesn't go too low
+
+                data.push({
+                    day: i + 1,
+                    price: parseFloat(price.toFixed(2)),
+                    date: date.toISOString().split('T')[0]
+                });
+            }
+            return data;
+        }
+
+        function linearRegression(data) {
+            const n = data.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+
+            for (const point of data) {
+                sumX += point.day;
+                sumY += point.price;
+                sumXY += point.day * point.price;
+                sumXX += point.day * point.day;
+            }
+
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+
+            const nextDay = n + 1;
+            return slope * nextDay + intercept;
+        }
+
+        function visualizeData(historicalData, prediction, ticker) {
+            const labels = historicalData.map(d => d.date);
+            const prices = historicalData.map(d => d.price);
+
+            // Add predicted point to the chart
+            const lastDate = new Date(labels[labels.length - 1]);
+            lastDate.setDate(lastDate.getDate() + 1);
+            const predictedDate = lastDate.toISOString().split('T')[0];
+            
+            labels.push(predictedDate);
+            prices.push(null); // Placeholder for the actual data line
+            
+            if (stockChart) {
+                stockChart.destroy();
+            }
+
+            stockChart = new Chart(stockChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `${ticker} Historical Close Price`,
+                        data: prices.slice(0, -1), // Exclude the placeholder for the main line
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }, {
+                        label: 'Predicted Price',
+                        data: [...Array(prices.length - 1).fill(null), prediction],
+                        borderColor: 'rgb(22, 163, 74)',
+                        backgroundColor: 'rgb(22, 163, 74)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `Stock Price Trend for ${ticker}`,
+                            color: 'white',
+                            font: {
+                                size: 18
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: 'rgb(156, 163, 175)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: 'rgb(156, 163, 175)',
+                                callback: function(value) {
+                                    return '$' + value;
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>
