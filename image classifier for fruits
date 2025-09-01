@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Classifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-input-button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 text-center">
+        <h1 class="text-4xl font-bold text-emerald-400">Fruit Classifier</h1>
+        <p class="text-gray-400 mt-2 mb-6">Upload an image of a fruit (apple, banana, or orange) to classify it!</p>
+
+        <!-- Image Upload and Preview -->
+        <div id="image-preview-container" class="mb-6 bg-gray-700 w-full h-80 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-500">
+            <img id="image-preview" src="" class="hidden max-h-full max-w-full rounded-lg" />
+            <span id="preview-text" class="text-gray-400">Your image will appear here</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div class="file-input-wrapper">
+                <button class="file-input-button w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-lg transition duration-300 transform hover:scale-105">
+                    Upload Image
+                </button>
+                <input type="file" id="image-upload" accept="image/*" />
+            </div>
+            <button id="classify-btn" class="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-lg transition duration-300 transform hover:scale-105" disabled>
+                Classify
+            </button>
+        </div>
+        
+        <!-- Result Section -->
+        <div id="result-container" class="hidden mt-8 text-center bg-gray-700 p-6 rounded-lg">
+            <h2 class="text-2xl font-semibold mb-2">Prediction Result</h2>
+            <p id="prediction-text" class="text-3xl font-bold capitalize"></p>
+        </div>
+    </div>
+    
+    <canvas id="hidden-canvas" class="hidden"></canvas>
+
+    <script>
+        const imageUpload = document.getElementById('image-upload');
+        const imagePreview = document.getElementById('image-preview');
+        const previewText = document.getElementById('preview-text');
+        const classifyBtn = document.getElementById('classify-btn');
+        const resultContainer = document.getElementById('result-container');
+        const predictionText = document.getElementById('prediction-text');
+        const hiddenCanvas = document.getElementById('hidden-canvas');
+        const ctx = hiddenCanvas.getContext('2d');
+
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    previewText.classList.add('hidden');
+                    classifyBtn.disabled = false;
+                    resultContainer.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        classifyBtn.addEventListener('click', () => {
+            // This is a SIMULATED classification for demonstration purposes.
+            // A real model would require a backend with TensorFlow/PyTorch.
+            // This simulation uses dominant color analysis as a proxy.
+            
+            const img = new Image();
+            img.onload = () => {
+                hiddenCanvas.width = img.width;
+                hiddenCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0, img.width, img.height);
+                
+                const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                const data = imageData.data;
+                
+                let r = 0, g = 0, b = 0;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                }
+
+                const totalPixels = data.length / 4;
+                const avgR = r / totalPixels;
+                const avgG = g / totalPixels;
+                const avgB = b / totalPixels;
+                
+                let prediction = 'unknown';
+
+                // Simple color-based logic
+                if (avgR > avgG && avgR > avgB && avgG < 150) {
+                    prediction = 'apple'; // Dominant red
+                } else if (avgR > 180 && avgG > 180 && avgB < 100) {
+                    prediction = 'banana'; // Dominant yellow
+                } else if (avgR > 200 && avgG > 100 && avgG < 180 && avgB < 100) {
+                    prediction = 'orange'; // Dominant orange
+                } else {
+                    // Fallback for unclear cases
+                    const fruits = ['apple', 'banana', 'orange'];
+                    prediction = fruits[Math.floor(Math.random() * fruits.length)];
+                }
+                
+                displayResult(prediction);
+            };
+            img.src = imagePreview.src;
+        });
+
+        function displayResult(fruit) {
+            let colorClass = '';
+            switch(fruit) {
+                case 'apple':
+                    colorClass = 'text-red-400';
+                    break;
+                case 'banana':
+                    colorClass = 'text-yellow-400';
+                    break;
+                case 'orange':
+                    colorClass = 'text-orange-400';
+                    break;
+                default:
+                    colorClass = 'text-gray-400';
+            }
+            predictionText.textContent = `It looks like a(n) ${fruit}!`;
+            predictionText.className = `text-3xl font-bold capitalize ${colorClass}`;
+            resultContainer.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
+
